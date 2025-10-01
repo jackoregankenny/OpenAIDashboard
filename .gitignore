@@ -36,3 +36,7 @@ yarn-error.log*
 next-env.d.ts
 
 
+# Generated registry file
+src/lib/registry/generated.ts
+
+/src/generated/prisma
