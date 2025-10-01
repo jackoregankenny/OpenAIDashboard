@@ -4,7 +4,7 @@ import { z } from 'zod';
 export const baseBlockSchema = z.object({
   id: z.string(),
   type: z.string(),
-  props: z.record(z.any()),
+  props: z.record(z.string(), z.any()),
 });
 
 export type Block = z.infer<typeof baseBlockSchema>;
@@ -124,12 +124,20 @@ export const timetableBlockPropsSchema = z.object({
     { time: '1:00 PM', label: 'Period 5' },
     { time: '2:00 PM', label: 'Period 6' },
   ]),
-  schedule: z.record(z.string(), z.object({
+  // Year groups (Year 7, Year 8, etc.)
+  years: z.array(z.string()).default(['Year 7', 'Year 8', 'Year 9', 'Year 10', 'Year 11', 'Year 12']),
+  // Classes within each year (A, B, C, etc.)
+  classesPerYear: z.array(z.string()).default(['Class A', 'Class B', 'Class C']),
+  // Nested schedules: { "Year 7-Class A": { schedule }, "Year 7-Class B": { schedule } }
+  schedules: z.record(z.string(), z.record(z.string(), z.object({
     subject: z.string(),
     teacher: z.string().optional(),
     room: z.string().optional(),
     color: z.string().optional(),
-  })).default({}),
+  }))).default({}),
+  selectedYear: z.string().default('Year 7'),
+  selectedClass: z.string().default('Class A'),
+  showSelectors: z.boolean().default(true),
   showTeachers: z.boolean().default(true),
   showRooms: z.boolean().default(true),
   compactMode: z.boolean().default(false),
@@ -224,6 +232,112 @@ export const videoBlockPropsSchema = z.object({
 
 export type VideoBlockProps = z.infer<typeof videoBlockPropsSchema>;
 
+// School Calendar block props
+export const schoolCalendarBlockPropsSchema = z.object({
+  title: z.string().default('Academic Calendar'),
+  academicYear: z.string().default('2024-2025'),
+  terms: z.array(z.object({
+    name: z.string(),
+    startDate: z.string(), // ISO date format
+    endDate: z.string(), // ISO date format
+  })).default([]),
+  showWeeks: z.boolean().default(true),
+  layout: z.enum(['cards', 'timeline']).default('cards'),
+});
+
+export type SchoolCalendarBlockProps = z.infer<typeof schoolCalendarBlockPropsSchema>;
+
+// Holidays block props
+export const holidaysBlockPropsSchema = z.object({
+  title: z.string().default('School Holidays'),
+  subtitle: z.string().optional(),
+  holidays: z.array(z.object({
+    name: z.string(),
+    date: z.string(), // ISO date format
+    type: z.enum(['holiday', 'break', 'trip']).default('holiday'),
+    description: z.string().optional(),
+  })).default([]),
+  showCountdown: z.boolean().default(true),
+  layout: z.enum(['cards', 'timeline']).default('cards'),
+});
+
+export type HolidaysBlockProps = z.infer<typeof holidaysBlockPropsSchema>;
+
+// Booklist block props
+export const booklistBlockPropsSchema = z.object({
+  title: z.string().default('School Booklist'),
+  year: z.string().default('2025'),
+  books: z.array(z.object({
+    title: z.string(),
+    author: z.string(),
+    edition: z.string().optional(),
+    isbn: z.string().optional(),
+    price: z.number().optional(),
+    supplier: z.string().optional(),
+    required: z.boolean().default(true),
+    notes: z.string().optional(),
+  })).default([]),
+  showPrices: z.boolean().default(true),
+  showISBN: z.boolean().default(true),
+  includeOptional: z.boolean().default(true),
+});
+
+export type BooklistBlockProps = z.infer<typeof booklistBlockPropsSchema>;
+
+// Uniform block props
+export const uniformBlockPropsSchema = z.object({
+  title: z.string().default('School Uniform'),
+  subtitle: z.string().optional(),
+  categories: z.array(z.object({
+    name: z.string(),
+    season: z.string().optional(),
+    items: z.array(z.string()),
+    imageUrl: z.string().optional(),
+    notes: z.string().optional(),
+  })).default([]),
+  showImages: z.boolean().default(false),
+});
+
+export type UniformBlockProps = z.infer<typeof uniformBlockPropsSchema>;
+
+// Sports fixtures block props
+export const sportsFixturesBlockPropsSchema = z.object({
+  title: z.string().default('Sports Fixtures'),
+  fixtures: z.array(z.object({
+    sport: z.string(),
+    team: z.string().optional(),
+    homeTeam: z.string(),
+    awayTeam: z.string(),
+    date: z.string(), // ISO date
+    time: z.string(),
+    location: z.string().optional(),
+    result: z.string().optional(),
+    won: z.boolean().optional(),
+  })).default([]),
+  showPastResults: z.boolean().default(false),
+});
+
+export type SportsFixturesBlockProps = z.infer<typeof sportsFixturesBlockPropsSchema>;
+
+// Downloads block props
+export const downloadsBlockPropsSchema = z.object({
+  title: z.string().default('Downloads & Resources'),
+  subtitle: z.string().optional(),
+  categories: z.array(z.object({
+    name: z.string(),
+    files: z.array(z.object({
+      name: z.string(),
+      description: z.string().optional(),
+      type: z.enum(['pdf', 'image', 'doc', 'other']).default('pdf'),
+      url: z.string(),
+      sizeKB: z.number().optional(),
+    })),
+  })).default([]),
+  layout: z.enum(['grid', 'list']).default('grid'),
+});
+
+export type DownloadsBlockProps = z.infer<typeof downloadsBlockPropsSchema>;
+
 // Block type definitions
 export type BlockType = 
   | 'hero'
@@ -239,10 +353,16 @@ export type BlockType =
   | 'features'
   | 'cta'
   | 'stats'
-  | 'video';
+  | 'video'
+  | 'schoolCalendar'
+  | 'holidays'
+  | 'booklist'
+  | 'uniform'
+  | 'sportsFixtures'
+  | 'downloads';
 
 // Block with typed props
-export interface TypedBlock<T = any> extends Block {
+export interface TypedBlock<T extends Record<string, any> = Record<string, any>> extends Block {
   type: BlockType;
   props: T;
 }

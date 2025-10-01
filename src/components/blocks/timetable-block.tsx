@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { TimetableBlockProps } from '@/lib/blocks/types';
 import { Card } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { registerBlock } from '@/lib/blocks/registry';
 
 export function TimetableBlock({
@@ -7,27 +9,70 @@ export function TimetableBlock({
   layout = 'weekly',
   days,
   periods,
-  schedule,
+  years = ['Year 7', 'Year 8', 'Year 9', 'Year 10', 'Year 11', 'Year 12'],
+  classesPerYear = ['Class A', 'Class B', 'Class C'],
+  schedules = {},
+  selectedYear = 'Year 7',
+  selectedClass = 'Class A',
+  showSelectors = true,
   showTeachers = true,
   showRooms = true,
   compactMode = false,
 }: TimetableBlockProps) {
-  // Generate schedule key from day and period
-  const getScheduleKey = (day: string, periodLabel: string) => {
-    return `${day}-${periodLabel}`;
-  };
-
+  // State for active year and class selection
+  const [activeYear, setActiveYear] = useState(selectedYear);
+  const [activeClass, setActiveClass] = useState(selectedClass);
+  
+  // Get schedule key
+  const getScheduleKey = () => `${activeYear}-${activeClass}`;
+  const activeSchedule = schedules[getScheduleKey()] || {};
   // Get cell content
   const getCellContent = (day: string, periodLabel: string) => {
-    const key = getScheduleKey(day, periodLabel);
-    return schedule[key];
+    const key = `${day}-${periodLabel}`;
+    return activeSchedule[key];
   };
+
+  // Reusable header component
+  const TimetableHeader = () => (
+    <div className="mb-8">
+      <h2 className="text-3xl font-bold text-center mb-4">{title}</h2>
+      {showSelectors && (
+        <div className="flex justify-center gap-3">
+          <Select value={activeYear} onValueChange={setActiveYear}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="Select year" />
+            </SelectTrigger>
+            <SelectContent>
+              {years.map((year) => (
+                <SelectItem key={year} value={year}>
+                  {year}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          
+          <Select value={activeClass} onValueChange={setActiveClass}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="Select class" />
+            </SelectTrigger>
+            <SelectContent>
+              {classesPerYear.map((cls) => (
+                <SelectItem key={cls} value={cls}>
+                  {cls}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+    </div>
+  );
 
   if (layout === 'daily') {
     // Daily view - one day at a time
     return (
       <div className="px-6 py-12 md:px-12">
-        <h2 className="text-3xl font-bold mb-8 text-center">{title}</h2>
+        <TimetableHeader />
         <div className="max-w-4xl mx-auto space-y-4">
           {days.map((day) => (
             <Card key={day} className="overflow-hidden">
@@ -76,7 +121,7 @@ export function TimetableBlock({
     // Period view - grouped by period
     return (
       <div className="px-6 py-12 md:px-12">
-        <h2 className="text-3xl font-bold mb-8 text-center">{title}</h2>
+        <TimetableHeader />
         <div className="max-w-6xl mx-auto space-y-6">
           {periods.map((period) => (
             <div key={period.label}>
@@ -115,11 +160,12 @@ export function TimetableBlock({
 
   // Weekly view (default) - traditional grid
   return (
-    <div className="px-6 py-12 md:px-12">
-      <h2 className="text-3xl font-bold mb-8 text-center">{title}</h2>
-      <div className="max-w-7xl mx-auto overflow-x-auto">
-        <div className="min-w-[800px]">
-          <div className="grid gap-2" style={{ gridTemplateColumns: `120px repeat(${days.length}, 1fr)` }}>
+    <div className="px-4 md:px-6 py-12">
+      <TimetableHeader />
+      <div className="w-full max-w-7xl mx-auto">
+        <div className="overflow-x-auto -mx-4 md:mx-0">
+          <div className="inline-block min-w-full px-4 md:px-0">
+            <div className="grid gap-2" style={{ gridTemplateColumns: `minmax(100px, 120px) repeat(${days.length}, minmax(120px, 1fr))` }}>
             {/* Header row */}
             <div className="bg-muted p-3 rounded-lg font-semibold text-center">Time</div>
             {days.map((day) => (
@@ -129,45 +175,44 @@ export function TimetableBlock({
             ))}
 
             {/* Period rows */}
-            {periods.map((period) => (
-              <>
-                <div
-                  key={`time-${period.label}`}
-                  className="bg-muted p-3 rounded-lg flex flex-col justify-center"
-                >
-                  <div className={`font-medium ${compactMode ? 'text-xs' : 'text-sm'}`}>{period.label}</div>
-                  <div className="text-xs text-muted-foreground">{period.time}</div>
-                </div>
-                {days.map((day) => {
-                  const content = getCellContent(day, period.label);
-                  return (
-                    <Card
-                      key={`${day}-${period.label}`}
-                      className={`${compactMode ? 'p-2' : 'p-3'} transition-all hover:shadow-md`}
-                      style={{ backgroundColor: content?.color || 'white' }}
-                    >
-                      {content ? (
-                        <>
-                          <div className={`font-semibold ${compactMode ? 'text-sm' : ''}`}>
-                            {content.subject}
+            {periods.flatMap((period) => [
+              <div
+                key={`time-${period.label}`}
+                className="bg-muted p-3 rounded-lg flex flex-col justify-center"
+              >
+                <div className={`font-medium ${compactMode ? 'text-xs' : 'text-sm'}`}>{period.label}</div>
+                <div className="text-xs text-muted-foreground">{period.time}</div>
+              </div>,
+              ...days.map((day) => {
+                const content = getCellContent(day, period.label);
+                return (
+                  <Card
+                    key={`${day}-${period.label}`}
+                    className={`${compactMode ? 'p-2' : 'p-3'} transition-all hover:shadow-md`}
+                    style={{ backgroundColor: content?.color || 'white' }}
+                  >
+                    {content ? (
+                      <>
+                        <div className={`font-semibold ${compactMode ? 'text-sm' : ''}`}>
+                          {content.subject}
+                        </div>
+                        {showTeachers && content.teacher && (
+                          <div className={`text-muted-foreground ${compactMode ? 'text-xs' : 'text-sm'}`}>
+                            {content.teacher}
                           </div>
-                          {showTeachers && content.teacher && (
-                            <div className={`text-muted-foreground ${compactMode ? 'text-xs' : 'text-sm'}`}>
-                              {content.teacher}
-                            </div>
-                          )}
-                          {showRooms && content.room && (
-                            <div className="text-xs text-muted-foreground">Room {content.room}</div>
-                          )}
-                        </>
-                      ) : (
-                        <div className="text-sm text-muted-foreground italic">-</div>
-                      )}
-                    </Card>
-                  );
-                })}
-              </>
-            ))}
+                        )}
+                        {showRooms && content.room && (
+                          <div className="text-xs text-muted-foreground">Room {content.room}</div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="text-sm text-muted-foreground italic">-</div>
+                    )}
+                  </Card>
+                );
+              })
+            ])}
+            </div>
           </div>
         </div>
       </div>
@@ -194,11 +239,18 @@ registerBlock({
       { time: '1:00 PM', label: 'Period 5' },
       { time: '2:00 PM', label: 'Period 6' },
     ],
-    schedule: {
-      'Monday-Period 1': { subject: 'Mathematics', teacher: 'Mr. Smith', room: '101', color: '#dbeafe' },
-      'Monday-Period 2': { subject: 'English', teacher: 'Ms. Johnson', room: '202', color: '#dcfce7' },
-      'Tuesday-Period 1': { subject: 'Science', teacher: 'Dr. Brown', room: '303', color: '#fef3c7' },
+    years: ['Year 7', 'Year 8', 'Year 9', 'Year 10', 'Year 11', 'Year 12'],
+    classesPerYear: ['Class A', 'Class B', 'Class C'],
+    schedules: {
+      'Year 7-Class A': {
+        'Monday-Period 1': { subject: 'Mathematics', teacher: 'Mr. Smith', room: '101', color: '#dbeafe' },
+        'Monday-Period 2': { subject: 'English', teacher: 'Ms. Johnson', room: '202', color: '#dcfce7' },
+        'Tuesday-Period 1': { subject: 'Science', teacher: 'Dr. Brown', room: '303', color: '#fef3c7' },
+      }
     },
+    selectedYear: 'Year 7',
+    selectedClass: 'Class A',
+    showSelectors: true,
     showTeachers: true,
     showRooms: true,
     compactMode: false,

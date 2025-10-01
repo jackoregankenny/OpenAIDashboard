@@ -9,7 +9,7 @@ export interface BlockDefinition {
   component: ComponentType<any>;
   defaultProps: any;
   icon: string;
-  category: 'content' | 'media' | 'people' | 'interactive';
+  category: 'hero' | 'content' | 'layout' | 'media' | 'people' | 'school' | 'interactive';
 }
 
 // Auto-populated registry - blocks register themselves

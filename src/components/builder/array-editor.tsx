@@ -179,7 +179,7 @@ export function ArrayEditor({ label, value = [], onChange, itemSchema = 'object'
       <div className="max-h-96 overflow-y-auto pr-2">
         {value.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-4">
-            No items yet. Click "Add Item" below.
+            No items yet. Click &quot;Add Item&quot; below.
           </p>
         ) : (
           <div>

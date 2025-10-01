@@ -42,7 +42,10 @@ export function SortableBlock({
       ref={setNodeRef}
       style={style}
       className={`relative group ${isSelected ? 'ring-2 ring-primary' : ''}`}
-      onClick={() => onSelect(block.id)}
+      onClick={() => {
+        onSelect(block.id);
+        onEdit(block);
+      }}
     >
       {/* Drag handle and controls overlay */}
       <div className="absolute top-2 right-2 z-10 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -52,6 +55,9 @@ export function SortableBlock({
           className="h-8 w-8 shadow-lg cursor-grab active:cursor-grabbing"
           {...attributes}
           {...listeners}
+          onClick={(e) => {
+            e.stopPropagation();
+          }}
         >
           <GripVertical className="h-4 w-4" />
         </Button>
@@ -80,7 +86,7 @@ export function SortableBlock({
       </div>
 
       {/* Block content */}
-      <div className={`${isSelected ? 'ring-2 ring-primary ring-offset-2' : ''}`}>
+      <div className={`${isSelected ? 'ring-2 ring-primary ring-offset-2' : ''} cursor-pointer`}>
         <BlockRenderer block={block} isPreview />
       </div>
     </div>

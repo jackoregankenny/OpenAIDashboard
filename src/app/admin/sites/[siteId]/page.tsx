@@ -122,7 +122,7 @@ export default function SiteSettingsPage() {
             <Card>
               <CardHeader>
                 <CardTitle>General Settings</CardTitle>
-                <CardDescription>Update your site's basic information</CardDescription>
+                <CardDescription>Update your site&apos;s basic information</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">

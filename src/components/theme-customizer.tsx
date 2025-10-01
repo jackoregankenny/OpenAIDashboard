@@ -122,7 +122,7 @@ export function ThemeCustomizer({ siteId }: ThemeCustomizerProps) {
           <CardTitle>Theme Customizer</CardTitle>
         </div>
         <CardDescription>
-          Customize your site's colors, fonts, and spacing
+          Customize your site&apos;s colors, fonts, and spacing
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">

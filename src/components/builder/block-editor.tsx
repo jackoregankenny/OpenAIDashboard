@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Block } from '@/lib/blocks/types';
 import { getBlockDefinition } from '@/lib/blocks/registry';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,9 @@ import { Switch } from '@/components/ui/switch';
 import { TimetableEditor } from './timetable-editor';
 import { ArrayEditor } from './array-editor';
 import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Eye, Upload } from 'lucide-react';
+import { parseICSFile } from '@/components/blocks/holidays-block';
 
 interface BlockEditorProps {
   block: Block | null;
@@ -23,6 +26,7 @@ interface BlockEditorProps {
 
 export function BlockEditor({ block, onSave, onCancel, onLiveUpdate }: BlockEditorProps) {
   const [editedProps, setEditedProps] = useState<any>(block?.props || {});
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setEditedProps(block?.props || {});
@@ -79,26 +83,84 @@ export function BlockEditor({ block, onSave, onCancel, onLiveUpdate }: BlockEdit
   };
 
   const renderField = (key: string, value: any) => {
-    // Special handling for timetable schedule
-    if (block.type === 'timetable' && key === 'schedule') {
+    // Special handling for timetable schedules - use modal editor
+    if (block.type === 'timetable' && key === 'schedules') {
+      // Calculate total filled cells across all year+class combinations
+      const allSchedules = editedProps.schedules || {};
+      const totalFilled = Object.values(allSchedules).reduce((sum: number, schedule: any) => {
+        return sum + Object.keys(schedule).length;
+      }, 0);
+      const years = editedProps.years || definition.defaultProps.years;
+      const classesPerYear = editedProps.classesPerYear || definition.defaultProps.classesPerYear;
+      const totalCombinations = years.length * classesPerYear.length;
+      
       return (
         <div key={key} className="space-y-2">
-          <Label>Timetable Schedule</Label>
-          <TimetableEditor
-            days={editedProps.days || definition.defaultProps.days}
-            periods={editedProps.periods || definition.defaultProps.periods}
-            schedule={editedProps.schedule || {}}
-            onChange={(schedule) => updateProp('schedule', schedule)}
-          />
+          <Label className="text-sm font-medium">Timetable Schedule</Label>
+          <div className="space-y-2">
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="w-full h-auto py-2.5 text-left flex flex-col items-start gap-1">
+                  <div className="font-semibold text-sm">Edit Timetables</div>
+                  <div className="text-xs text-muted-foreground">
+                    {totalFilled} cells filled • {totalCombinations} timetables
+                  </div>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-[95vw] w-full max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Edit Timetable Schedule</DialogTitle>
+                  <DialogDescription>
+                    Select a year and class, then click cells to edit. Changes save automatically to live preview.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="py-4 pr-2">
+                  <TimetableEditor
+                    days={editedProps.days || definition.defaultProps.days}
+                    periods={editedProps.periods || definition.defaultProps.periods}
+                    years={editedProps.years || definition.defaultProps.years}
+                    classesPerYear={editedProps.classesPerYear || definition.defaultProps.classesPerYear}
+                    schedules={editedProps.schedules || {}}
+                    onSchedulesChange={(schedules) => updateProp('schedules', schedules)}
+                  />
+                </div>
+              </DialogContent>
+            </Dialog>
+            
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="w-full">
+                  <Eye className="w-4 h-4 mr-2" />
+                  Preview Timetable
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Timetable Preview</DialogTitle>
+                  <DialogDescription>
+                    Live preview of how the timetable will appear on your site
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                  {React.createElement(definition.component, editedProps)}
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
       );
     }
 
     // Handle different prop types
     if (typeof value === 'boolean') {
+      const label = key.replace(/([A-Z])/g, ' $1').trim();
+      const capitalizedLabel = label.charAt(0).toUpperCase() + label.slice(1);
+      
       return (
-        <div key={key} className="flex items-center justify-between space-x-2">
-          <Label htmlFor={key} className="cursor-pointer">{key}</Label>
+        <div key={key} className="flex items-center justify-between gap-4 p-3 rounded-lg border bg-card">
+          <Label htmlFor={key} className="cursor-pointer text-sm font-medium">
+            {capitalizedLabel}
+          </Label>
           <Switch
             id={key}
             checked={editedProps[key] ?? value}
@@ -118,24 +180,30 @@ export function BlockEditor({ block, onSave, onCancel, onLiveUpdate }: BlockEdit
         if (block.type === 'staff') enumValues = ['grid', 'list'];
         if (block.type === 'events') enumValues = ['list', 'calendar', 'cards'];
         if (block.type === 'news') enumValues = ['cards', 'list', 'featured'];
+        if (block.type === 'timetable') enumValues = ['weekly', 'daily', 'period'];
+        if (block.type === 'schoolCalendar') enumValues = ['cards', 'timeline'];
+        if (block.type === 'holidays') enumValues = ['cards', 'timeline'];
       }
       if (key === 'height') enumValues = ['small', 'medium', 'large', 'full'];
       if (key === 'spacing') enumValues = ['compact', 'normal', 'spacious'];
 
       if (enumValues.length > 0) {
+        const label = key.replace(/([A-Z])/g, ' $1').trim();
+        const capitalizedLabel = label.charAt(0).toUpperCase() + label.slice(1);
+        
         return (
           <div key={key} className="space-y-2">
-            <Label htmlFor={key}>{key}</Label>
+            <Label htmlFor={key} className="text-sm font-medium">{capitalizedLabel}</Label>
             <Select
               value={editedProps[key] ?? value}
               onValueChange={(newValue) => updateProp(key, newValue)}
             >
-              <SelectTrigger id={key}>
+              <SelectTrigger id={key} className="h-9">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {enumValues.map((option) => (
-                  <SelectItem key={option} value={option}>
+                  <SelectItem key={option} value={option} className="capitalize">
                     {option}
                   </SelectItem>
                 ))}
@@ -147,29 +215,37 @@ export function BlockEditor({ block, onSave, onCancel, onLiveUpdate }: BlockEdit
     }
 
     if (typeof value === 'number') {
+      const label = key.replace(/([A-Z])/g, ' $1').trim();
+      const capitalizedLabel = label.charAt(0).toUpperCase() + label.slice(1);
+      
       return (
         <div key={key} className="space-y-2">
-          <Label htmlFor={key}>{key}</Label>
+          <Label htmlFor={key} className="text-sm font-medium">{capitalizedLabel}</Label>
           <Input
             id={key}
             type="number"
             value={editedProps[key] ?? value}
             onChange={(e) => updateProp(key, parseInt(e.target.value))}
+            className="h-9"
           />
         </div>
       );
     }
 
     if (typeof value === 'string') {
+      const label = key.replace(/([A-Z])/g, ' $1').trim();
+      const capitalizedLabel = label.charAt(0).toUpperCase() + label.slice(1);
+      
       if (key.includes('content') || key.includes('bio') || key.includes('description')) {
         return (
           <div key={key} className="space-y-2">
-            <Label htmlFor={key}>{key}</Label>
+            <Label htmlFor={key} className="text-sm font-medium">{capitalizedLabel}</Label>
             <Textarea
               id={key}
               value={editedProps[key] ?? value}
               onChange={(e) => updateProp(key, e.target.value)}
               rows={4}
+              className="resize-none"
             />
           </div>
         );
@@ -177,17 +253,95 @@ export function BlockEditor({ block, onSave, onCancel, onLiveUpdate }: BlockEdit
       
       return (
         <div key={key} className="space-y-2">
-          <Label htmlFor={key}>{key}</Label>
+          <Label htmlFor={key} className="text-sm font-medium">{capitalizedLabel}</Label>
           <Input
             id={key}
             value={editedProps[key] ?? value}
             onChange={(e) => updateProp(key, e.target.value)}
+            className="h-9"
           />
         </div>
       );
     }
 
     if (Array.isArray(value)) {
+      // Hide days and periods - they're too cluttered
+      if (key === 'days' || key === 'periods') {
+        return null;
+      }
+      
+      // Show years and classes in a compact way for timetable
+      if (key === 'years' || key === 'classesPerYear') {
+        const label = key === 'years' ? 'Year Groups' : 'Classes';
+        return (
+          <div key={key} className="space-y-2">
+            <Label className="text-sm font-medium">{label}</Label>
+            <div className="text-xs text-muted-foreground bg-muted p-2 rounded">
+              {(editedProps[key] || value).join(', ')}
+            </div>
+          </div>
+        );
+      }
+      
+      // Special handling for holidays - add ICS import
+      if (block?.type === 'holidays' && key === 'holidays') {
+        const handleICSImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const content = event.target?.result as string;
+            try {
+              const parsedHolidays = parseICSFile(content);
+              // Merge with existing holidays
+              const existing = editedProps[key] || value;
+              updateProp(key, [...existing, ...parsedHolidays]);
+            } catch (error) {
+              console.error('Failed to parse ICS file:', error);
+              alert('Failed to parse ICS file. Please ensure it\'s a valid calendar file.');
+            }
+          };
+          reader.readAsText(file);
+          
+          // Reset input
+          if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+          }
+        };
+        
+        return (
+          <div key={key} className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium">Holidays</Label>
+              <div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".ics,.ical"
+                  onChange={handleICSImport}
+                  className="hidden"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Upload className="w-3.5 h-3.5 mr-1.5" />
+                  Import ICS
+                </Button>
+              </div>
+            </div>
+            <ArrayEditor
+              label=""
+              value={editedProps[key] || value}
+              onChange={(newValue) => updateProp(key, newValue)}
+              itemSchema="object"
+            />
+          </div>
+        );
+      }
+      
       const itemSchema = value.length > 0 && typeof value[0] === 'object' ? 'object' : 'simple';
       return (
         <div key={key}>
@@ -216,40 +370,21 @@ export function BlockEditor({ block, onSave, onCancel, onLiveUpdate }: BlockEdit
   };
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="text-base">Edit {definition.name}</CardTitle>
-            <CardDescription className="text-xs">{definition.description}</CardDescription>
-          </div>
-          <div className="text-xs text-muted-foreground">
-            Live Preview
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {Object.entries(definition.defaultProps).map(([key, value], index) => (
-          <div key={key}>
-            {renderField(key, value)}
-            {index < Object.entries(definition.defaultProps).length - 1 && (
-              <Separator className="my-4" />
-            )}
-          </div>
-        ))}
-        
-        <Separator className="my-4" />
-        
-        <div className="flex gap-2">
-          <Button onClick={handleSave} size="sm" className="flex-1">
-            Save
-          </Button>
-          <Button onClick={onCancel} variant="outline" size="sm">
-            Cancel
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="space-y-3">
+      <div className="space-y-1">
+        <h3 className="text-sm font-semibold">{definition.name}</h3>
+        <p className="text-xs text-muted-foreground">{definition.description}</p>
+      </div>
+
+      <Separator />
+
+      <div className="space-y-3">
+        {Object.entries(definition.defaultProps).map(([key, value]) => {
+          const field = renderField(key, value);
+          return field ? <div key={key}>{field}</div> : null;
+        })}
+      </div>
+    </div>
   );
 }
 

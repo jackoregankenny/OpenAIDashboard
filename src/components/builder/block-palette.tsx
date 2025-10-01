@@ -10,7 +10,15 @@ interface BlockPaletteProps {
 }
 
 export function BlockPalette({ onAddBlock }: BlockPaletteProps) {
-  const categories = ['content', 'media', 'people', 'interactive'] as const;
+  const categories = [
+    { key: 'hero', label: '🎯 Hero Sections' },
+    { key: 'layout', label: '📐 Layout' },
+    { key: 'content', label: '📝 Content' },
+    { key: 'media', label: '🎨 Media' },
+    { key: 'school', label: '🏫 School' },
+    { key: 'people', label: '👥 People' },
+    { key: 'interactive', label: '⚡ Interactive' },
+  ] as const;
 
   const handleDragStart = (e: React.DragEvent, blockType: BlockType) => {
     e.dataTransfer.effectAllowed = 'copy';
@@ -18,16 +26,16 @@ export function BlockPalette({ onAddBlock }: BlockPaletteProps) {
   };
 
   return (
-    <div className="space-y-3">
-      {categories.map((category) => {
-        const blocks = getBlocksByCategory(category);
+    <div className="space-y-4">
+      {categories.map(({ key, label }) => {
+        const blocks = getBlocksByCategory(key as any);
         if (blocks.length === 0) return null;
 
         return (
-          <div key={category} className="space-y-1">
-            <div className="px-2 py-1.5">
-              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                {category}
+          <div key={key} className="space-y-2">
+            <div className="px-2 py-1">
+              <h3 className="text-xs font-semibold text-foreground uppercase tracking-wide">
+                {label}
               </h3>
             </div>
             {blocks.map((block) => (

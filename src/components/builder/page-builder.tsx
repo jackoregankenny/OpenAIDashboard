@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -23,7 +23,7 @@ import { BlockEditor } from './block-editor';
 import { getBlockDefinition } from '@/lib/blocks/registry';
 import { nanoid } from 'nanoid';
 import { Button } from '@/components/ui/button';
-import { Save, Eye, Plus, ArrowLeft, Settings as SettingsIcon, Palette, ChevronDown } from 'lucide-react';
+import { Save, Eye, Plus, ArrowLeft, Settings as SettingsIcon, Palette, ChevronDown, Check, Loader2, ExternalLink } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,6 +39,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
+import { useToast } from '@/hooks/use-toast';
 
 interface Page {
   id: string;
@@ -80,6 +81,11 @@ export function PageBuilder({
   const [editingBlock, setEditingBlock] = useState<Block | null>(null);
   const [showThemePanel, setShowThemePanel] = useState(false);
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const { toast } = useToast();
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSavedBlocksRef = useRef<string>(JSON.stringify(initialBlocks));
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -87,6 +93,59 @@ export function PageBuilder({
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
+
+  // Sync blocks when page changes (when initialBlocks changes)
+  useEffect(() => {
+    setBlocks(initialBlocks);
+    setSelectedBlockId(null);
+    setEditingBlock(null);
+    lastSavedBlocksRef.current = JSON.stringify(initialBlocks);
+  }, [page?.id]);
+
+  // Auto-save when blocks change
+  useEffect(() => {
+    const currentBlocks = JSON.stringify(blocks);
+    
+    // Skip if blocks haven't actually changed
+    if (currentBlocks === lastSavedBlocksRef.current) {
+      return;
+    }
+
+    // Clear existing timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    // Set status to saving after a short delay
+    setSaveStatus('saving');
+
+    // Debounce save by 1.5 seconds
+    saveTimeoutRef.current = setTimeout(async () => {
+      try {
+        if (onSave) {
+          await onSave(blocks);
+          lastSavedBlocksRef.current = currentBlocks;
+          setSaveStatus('saved');
+          
+          // Reset to idle after 2 seconds
+          setTimeout(() => setSaveStatus('idle'), 2000);
+        }
+      } catch (error) {
+        setSaveStatus('error');
+        toast({
+          title: 'Save failed',
+          description: 'Could not save changes. Please try again.',
+          variant: 'destructive',
+        });
+      }
+    }, 1500);
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [blocks, onSave, toast]);
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -133,9 +192,71 @@ export function PageBuilder({
     setEditingBlock(null);
   };
 
-  const handleSavePage = () => {
-    if (onSave) {
-      onSave(blocks);
+  // Live update for block properties (without closing editor)
+  const handleLiveUpdate = useCallback((updatedBlock: Block) => {
+    setBlocks((prev) =>
+      prev.map((block) => (block.id === updatedBlock.id ? updatedBlock : block))
+    );
+  }, []);
+
+  const handleManualSave = async () => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    
+    setIsSaving(true);
+    setSaveStatus('saving');
+    
+    try {
+      if (onSave) {
+        await onSave(blocks);
+        lastSavedBlocksRef.current = JSON.stringify(blocks);
+        setSaveStatus('saved');
+        toast({
+          title: 'Saved',
+          description: 'All changes have been saved.',
+        });
+        setTimeout(() => setSaveStatus('idle'), 2000);
+      }
+    } catch (error) {
+      setSaveStatus('error');
+      toast({
+        title: 'Save failed',
+        description: 'Could not save changes. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handlePublishClick = async () => {
+    // Save before publishing
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    
+    try {
+      if (onSave) {
+        await onSave(blocks);
+        lastSavedBlocksRef.current = JSON.stringify(blocks);
+      }
+      
+      if (onPublish) {
+        await onPublish();
+        toast({
+          title: page?.isPublished ? 'Unpublished' : 'Published',
+          description: page?.isPublished 
+            ? 'Page is now hidden from public view.' 
+            : 'Page is now live and visible to the public.',
+        });
+      }
+    } catch (error) {
+      toast({
+        title: 'Action failed',
+        description: 'Could not complete the action. Please try again.',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -189,6 +310,24 @@ export function PageBuilder({
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Save Status Indicator */}
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            {saveStatus === 'saving' && (
+              <>
+                <Loader2 className="w-3 h-3 animate-spin" />
+                <span>Saving...</span>
+              </>
+            )}
+            {saveStatus === 'saved' && (
+              <>
+                <Check className="w-3 h-3 text-green-600" />
+                <span className="text-green-600">Saved</span>
+              </>
+            )}
+          </div>
+
+          <div className="h-6 w-px bg-border mx-1" />
+          
           <Button
             variant="ghost"
             size="sm"
@@ -211,17 +350,42 @@ export function PageBuilder({
           
           <div className="h-6 w-px bg-border mx-1" />
           
-          <Button variant="outline" size="sm" className="h-8">
-            <Eye className="w-3.5 h-3.5 mr-1.5" />
+          <Button 
+            variant="ghost"
+            size="sm" 
+            onClick={() => {
+              if (site && page) {
+                window.open(`/sites/${site.domain}/${page.slug}`, '_blank');
+              }
+            }}
+            className="h-8"
+          >
+            <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
             Preview
           </Button>
           
           <Button 
+            variant="outline" 
             size="sm" 
-            onClick={onPublish}
+            onClick={handleManualSave}
+            disabled={isSaving}
+            className="h-8"
+          >
+            {isSaving ? (
+              <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+            ) : (
+              <Save className="w-3.5 h-3.5 mr-1.5" />
+            )}
+            Save
+          </Button>
+          
+          <Button 
+            size="sm" 
+            onClick={handlePublishClick}
             variant={page?.isPublished ? 'outline' : 'default'}
             className="h-8"
           >
+            <Eye className="w-3.5 h-3.5 mr-1.5" />
             {page?.isPublished ? 'Unpublish' : 'Publish'}
           </Button>
         </div>
@@ -300,7 +464,29 @@ export function PageBuilder({
         {/* Right Sidebar - Properties Panel */}
         <div className="w-80 border-l overflow-y-auto bg-background">
           <div className="p-4 border-b sticky top-0 bg-background z-10">
-            <h2 className="text-sm font-semibold text-foreground">Properties</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-foreground">
+                {editingBlock ? 'Edit Element' : 'Properties'}
+              </h2>
+              {editingBlock && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setEditingBlock(null);
+                    setSelectedBlockId(null);
+                  }}
+                  className="h-7 text-xs"
+                >
+                  Close
+                </Button>
+              )}
+            </div>
+            {editingBlock && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Changes save automatically
+              </p>
+            )}
           </div>
           {editingBlock ? (
             <div className="p-4">
@@ -315,14 +501,14 @@ export function PageBuilder({
               />
             </div>
           ) : (
-            <div className="flex items-center justify-center h-full text-center p-6">
-              <div>
-                <div className="w-12 h-12 mx-auto mb-3 rounded-lg bg-muted flex items-center justify-center">
-                  <Plus className="w-6 h-6 text-muted-foreground" />
+            <div className="flex items-center justify-center h-full text-center p-8">
+              <div className="max-w-sm">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-lg bg-muted flex items-center justify-center">
+                  <SettingsIcon className="w-8 h-8 text-muted-foreground" />
                 </div>
-                <p className="text-xs font-medium text-foreground">No element selected</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Select an element to edit
+                <p className="text-sm font-semibold text-foreground mb-2">No element selected</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Click on any element in the canvas to edit its properties and customize its appearance.
                 </p>
               </div>
             </div>
@@ -336,7 +522,7 @@ export function PageBuilder({
           <SheetHeader>
             <SheetTitle>Theme Settings</SheetTitle>
             <SheetDescription>
-              Customize your site's appearance
+              Customize your site&apos;s appearance
             </SheetDescription>
           </SheetHeader>
           <div className="mt-6">

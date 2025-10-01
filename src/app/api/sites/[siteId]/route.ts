@@ -39,7 +39,7 @@ export async function PUT(
       .set({
         name: body.name,
         domain: body.domain,
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date(),
       })
       .where(eq(sites.id, siteId));
 
