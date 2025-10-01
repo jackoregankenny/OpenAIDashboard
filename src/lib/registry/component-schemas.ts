@@ -151,6 +151,15 @@ export const componentSchemas: Record<string, PropertyField[]> = {
     },
   ],
 
+  'calendar-ical': [
+    { key: 'heading', label: 'Heading', type: 'text', placeholder: 'Upcoming Events' },
+    { key: 'description', label: 'Description', type: 'textarea', placeholder: 'Share details about your calendar...' },
+    { key: 'feedUrl', label: 'ICS Feed URL', type: 'url', placeholder: 'https://example.com/calendar.ics' },
+    { key: 'maxEvents', label: 'Maximum Events', type: 'number', min: 1, max: 20 },
+    { key: 'includePastDays', label: 'Include Past Days', type: 'number', min: 0, max: 30 },
+    { key: 'emptyStateMessage', label: 'Empty State Message', type: 'text', placeholder: 'No upcoming events just yet. Check back soon!' },
+  ],
+
   'footer-simple': [
     { key: 'schoolName', label: 'School Name', type: 'text', placeholder: 'Our School' },
     { key: 'tagline', label: 'Tagline', type: 'text', placeholder: 'Excellence in Education' },

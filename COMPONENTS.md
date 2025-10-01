@@ -1,6 +1,6 @@
 # Component Library
 
-## Available Components (8 Total)
+## Available Components (9 Total)
 
 ### Hero Components
 
@@ -100,9 +100,28 @@ Display key metrics and achievements in an engaging format.
 
 ---
 
+#### 5. **Calendar (iCal)** (`calendar-ical`)
+Embed a public iCal/ICS feed and show upcoming events in a clean timeline layout.
+
+**Props:**
+- `heading` - Calendar heading (default: "Upcoming Events")
+- `description` - Supporting copy above the calendar
+- `feedUrl` - Public `.ics` URL to fetch (optional)
+- `maxEvents` - How many upcoming events to show (default: 5)
+- `includePastDays` - Include events that ended within _n_ days
+- `emptyStateMessage` - Message when no events are available
+
+**Features:**
+- Graceful fallback sample events when no feed is connected
+- Automatic date/time formatting with all-day support
+- Event cards link out to the original calendar URL when provided
+- CORS/error handling to surface friendly feedback to editors
+
+---
+
 ### Testimonial Components
 
-#### 5. **Testimonials** (`testimonials-slider`)
+#### 6. **Testimonials** (`testimonials-slider`)
 Showcase testimonials with ratings and author information.
 
 **Props:**
@@ -130,7 +149,7 @@ Showcase testimonials with ratings and author information.
 
 ### CTA Components
 
-#### 6. **CTA Banner** (`cta-banner`)
+#### 7. **CTA Banner** (`cta-banner`)
 Prominent call-to-action section to drive conversions.
 
 **Props:**
@@ -152,7 +171,7 @@ Prominent call-to-action section to drive conversions.
 
 ### Team Components
 
-#### 7. **Team Grid** (`team-grid`)
+#### 8. **Team Grid** (`team-grid`)
 Display team members or faculty with photos and details.
 
 **Props:**
@@ -180,7 +199,7 @@ Display team members or faculty with photos and details.
 
 ### Footer Components
 
-#### 8. **Footer Simple** (`footer-simple`)
+#### 9. **Footer Simple** (`footer-simple`)
 Professional footer with navigation links and social media.
 
 **Props:**
@@ -344,5 +363,5 @@ See [COMPONENT_TEMPLATE.md](./COMPONENT_TEMPLATE.md) for the complete guide on c
 
 ---
 
-**Total Components**: 8
+**Total Components**: 9
 **Last Updated**: 2025-10-01

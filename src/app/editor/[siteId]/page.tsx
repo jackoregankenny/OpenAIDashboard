@@ -8,12 +8,69 @@ import { PropertiesPanel } from '@/components/editor/PropertiesPanel';
 import { PageNavigator } from '@/components/editor/PageNavigator';
 import { useEditorStore, type PageMetadata } from '@/lib/stores/editor-store';
 import { generateNodeId } from '@/lib/page-structure/types';
+import { injectThemeStyles } from '@/lib/theme-engine/theme-to-css';
+import {
+  injectFontFaceStyles,
+  type CustomFontDefinition,
+} from '@/lib/theme-engine/font-face';
+import {
+  THEME_STORAGE_KEY,
+  type StoredThemePackage,
+} from '@/lib/theme-engine/theme-storage';
 
 export default function EditorPage() {
   const hydratePages = useEditorStore((state) => state.hydratePages);
   const initializeWithDemo = useEditorStore((state) => state.initializeWithDemo);
   const pages = useEditorStore((state) => state.pages);
   const currentPageId = useEditorStore((state) => state.currentPageId);
+
+  useEffect(() => {
+    const storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+
+    if (!storedTheme) {
+      injectFontFaceStyles([], 'editor-fonts');
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(storedTheme) as StoredThemePackage;
+
+      if (parsed.theme) {
+        injectThemeStyles(parsed.theme);
+      }
+
+      const fonts: CustomFontDefinition[] = [];
+      const headingFont = parsed.customFonts?.heading;
+      const bodyFont = parsed.customFonts?.body;
+
+      if (headingFont) {
+        fonts.push({
+          id: 'editor-heading-font',
+          family: headingFont.family,
+          dataUrl: headingFont.dataUrl,
+          format: headingFont.format,
+          weight: headingFont.weight,
+          style: headingFont.style,
+        });
+      }
+
+      if (bodyFont) {
+        fonts.push({
+          id: 'editor-body-font',
+          family: bodyFont.family,
+          dataUrl: bodyFont.dataUrl,
+          format: bodyFont.format,
+          weight: bodyFont.weight,
+          style: bodyFont.style,
+        });
+      }
+
+      injectFontFaceStyles(fonts, 'editor-fonts');
+    } catch (error) {
+      injectFontFaceStyles([], 'editor-fonts');
+      console.error('Failed to load stored theme:', error);
+    }
+  }, []);
 
   // Load saved pages (multi-page aware) or fall back to demo
   useEffect(() => {

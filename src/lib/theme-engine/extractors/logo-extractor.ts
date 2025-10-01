@@ -1,6 +1,19 @@
-import Vibrant from 'node-vibrant';
 import { generatePaletteFromColor, generateNeutralPalette } from '../generators/palette-generator';
 import type { Theme } from '../types';
+
+let vibrantLoader: Promise<any> | null = null;
+
+async function loadVibrant() {
+  if (!vibrantLoader) {
+    const isBrowser = typeof window !== 'undefined';
+    vibrantLoader = (isBrowser
+      ? import('node-vibrant/browser')
+      : import('node-vibrant')
+    ).then((mod) => mod.default ?? mod);
+  }
+
+  return vibrantLoader;
+}
 
 /**
  * Extract dominant colors from an image URL
@@ -14,6 +27,7 @@ export async function extractColorsFromImage(imageUrl: string): Promise<{
   lightVibrant: string;
 }> {
   try {
+    const Vibrant = await loadVibrant();
     const palette = await Vibrant.from(imageUrl).getPalette();
 
     return {
@@ -37,29 +51,33 @@ export async function extractColorsFromImage(imageUrl: string): Promise<{
   }
 }
 
-/**
- * Generate a complete theme from a logo image
- */
-export async function generateThemeFromLogo(
-  imageUrl: string,
-  schoolName: string
-): Promise<Omit<Theme, 'id'>> {
-  const colors = await extractColorsFromImage(imageUrl);
+interface ThemeBaseOptions {
+  schoolName: string;
+  sourceReference: string;
+  primaryColor: string;
+  secondaryColor?: string;
+  infoColor?: string;
+}
 
-  // Generate full color palettes
-  const primaryPalette = generatePaletteFromColor(colors.primary);
-  const neutralPalette = generateNeutralPalette(colors.primary);
+function createThemeFromBaseColors({
+  schoolName,
+  sourceReference,
+  primaryColor,
+  secondaryColor,
+  infoColor,
+}: ThemeBaseOptions): Omit<Theme, 'id'> {
+  const primaryPalette = generatePaletteFromColor(primaryColor);
+  const neutralPalette = generateNeutralPalette(primaryColor);
 
-  // Generate secondary palette if we have a secondary color
-  const secondaryPalette = colors.secondary
-    ? generatePaletteFromColor(colors.secondary)
+  const secondaryPalette = secondaryColor
+    ? generatePaletteFromColor(secondaryColor)
     : undefined;
 
   return {
     name: `${schoolName} Theme`,
     source: {
       type: 'logo',
-      reference: imageUrl,
+      reference: sourceReference,
     },
     colors: {
       primary: primaryPalette,
@@ -69,7 +87,7 @@ export async function generateThemeFromLogo(
         success: '#22c55e',
         warning: '#f59e0b',
         error: '#ef4444',
-        info: colors.lightVibrant,
+        info: infoColor || primaryPalette[300],
       },
     },
     typography: {
@@ -119,6 +137,36 @@ export async function generateThemeFromLogo(
     },
   };
 }
+
+export interface GeneratedThemeResult {
+  theme: Omit<Theme, 'id'>;
+  extractedColors: Awaited<ReturnType<typeof extractColorsFromImage>>;
+}
+
+/**
+ * Generate a complete theme from a logo image along with the raw crest colours
+ */
+export async function generateThemeFromLogo(
+  imageUrl: string,
+  schoolName: string
+): Promise<GeneratedThemeResult> {
+  const colors = await extractColorsFromImage(imageUrl);
+
+  const theme = createThemeFromBaseColors({
+    schoolName,
+    sourceReference: imageUrl,
+    primaryColor: colors.primary,
+    secondaryColor: colors.secondary,
+    infoColor: colors.lightVibrant,
+  });
+
+  return {
+    theme,
+    extractedColors: colors,
+  };
+}
+
+export { createThemeFromBaseColors };
 
 /**
  * Extract colors from a logo file (base64 or URL)

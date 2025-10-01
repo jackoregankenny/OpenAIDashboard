@@ -77,6 +77,15 @@ export function Toolbar() {
           {isPreviewMode ? '✏️ Edit' : '👁️ Preview'}
         </button>
 
+        {/* View Preview */}
+        <a
+          href="/preview/demo"
+          target="_blank"
+          className="px-4 py-1.5 text-sm font-medium rounded bg-blue-500 text-white hover:bg-blue-600"
+        >
+          🔍 View Preview
+        </a>
+
         {/* Save - Auto-saves to localStorage */}
         <div className="px-4 py-1.5 text-sm text-gray-600 flex items-center gap-2">
           <span className="text-green-600">✓</span> Auto-saved
