@@ -20,10 +20,11 @@ import { Block, BlockType } from '@/lib/blocks/types';
 import { SortableBlock } from './sortable-block';
 import { BlockPalette } from './block-palette';
 import { BlockEditor } from './block-editor';
+import { BlockPickerModal } from './block-picker-modal';
 import { getBlockDefinition } from '@/lib/blocks/registry';
 import { nanoid } from 'nanoid';
 import { Button } from '@/components/ui/button';
-import { Save, Eye, Plus, ArrowLeft, Settings as SettingsIcon, Palette, ChevronDown, Check, Loader2, ExternalLink } from 'lucide-react';
+import { Save, Eye, Plus, ArrowLeft, Settings as SettingsIcon, Palette, ChevronDown, Check, Loader2, ExternalLink, Sparkles } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -81,6 +82,7 @@ export function PageBuilder({
   const [editingBlock, setEditingBlock] = useState<Block | null>(null);
   const [showThemePanel, setShowThemePanel] = useState(false);
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
+  const [showBlockPicker, setShowBlockPicker] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const { toast } = useToast();
@@ -393,44 +395,35 @@ export function PageBuilder({
 
       {/* Main Builder Area */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Left Sidebar - Block Palette */}
-        <div className="w-64 border-r overflow-y-auto bg-background">
-          <div className="p-4 border-b sticky top-0 bg-background z-10">
-            <h2 className="text-sm font-semibold text-foreground">Add Elements</h2>
-          </div>
-          <div className="p-3">
-            <BlockPalette onAddBlock={handleAddBlock} />
-          </div>
-        </div>
-
         {/* Center - Canvas */}
         <div 
           className="flex-1 overflow-y-auto bg-muted/30"
-          onDragOver={(e) => {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'copy';
-          }}
-          onDrop={(e) => {
-            e.preventDefault();
-            const blockType = e.dataTransfer.getData('blockType') as BlockType;
-            if (blockType) {
-              handleAddBlock(blockType);
-            }
-          }}
         >
           <div className="p-6 max-w-5xl mx-auto">
             {blocks.length === 0 ? (
-              <div className="flex items-center justify-center h-96 border-2 border-dashed rounded-lg bg-background">
-                <div className="text-center">
-                  <div className="w-12 h-12 mx-auto mb-3 rounded-lg bg-muted flex items-center justify-center">
-                    <Plus className="w-6 h-6 text-muted-foreground" />
+              <div className="flex flex-col items-center justify-center min-h-[600px] border-2 border-dashed rounded-xl bg-background/50 backdrop-blur">
+                <div className="text-center max-w-md">
+                  <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
+                    <Sparkles className="w-10 h-10 text-primary" />
                   </div>
-                  <p className="text-sm font-semibold text-foreground mb-1">
-                    Drag blocks here to start building
+                  <h3 className="text-2xl font-bold text-foreground mb-3">
+                    Start Building Your Page
+                  </h3>
+                  <p className="text-muted-foreground mb-8 leading-relaxed">
+                    Add your first block to begin. Choose from hero sections, content blocks, 
+                    school-specific widgets, and more.
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    Or select a block from the left panel
-                  </p>
+                  <Button 
+                    size="lg"
+                    onClick={() => setShowBlockPicker(true)}
+                    className="gap-2"
+                  >
+                    <Plus className="w-5 h-5" />
+                    Add Your First Block
+                  </Button>
+                  <div className="mt-6 text-xs text-muted-foreground">
+                    💡 Tip: Click on any block after adding it to customize its content
+                  </div>
                 </div>
               </div>
             ) : (
@@ -458,35 +451,52 @@ export function PageBuilder({
                 </SortableContext>
               </DndContext>
             )}
+            
+            {/* Floating Add Block Button */}
+            {blocks.length > 0 && (
+              <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
+                <Button
+                  size="lg"
+                  onClick={() => setShowBlockPicker(true)}
+                  className="shadow-2xl gap-2 px-6 h-14 text-base hover:scale-105 transition-transform"
+                >
+                  <Plus className="w-5 h-5" />
+                  Add Block
+                </Button>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Right Sidebar - Properties Panel */}
-        <div className="w-80 border-l overflow-y-auto bg-background">
-          <div className="p-4 border-b sticky top-0 bg-background z-10">
+        <div className="w-80 border-l overflow-y-auto bg-background/50 backdrop-blur">
+          <div className="p-4 border-b sticky top-0 bg-background/90 backdrop-blur-sm z-10">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-foreground">
-                {editingBlock ? 'Edit Element' : 'Properties'}
-              </h2>
-              {editingBlock && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setEditingBlock(null);
-                    setSelectedBlockId(null);
-                  }}
-                  className="h-7 text-xs"
-                >
-                  Close
-                </Button>
+              {editingBlock ? (
+                <>
+                  <div>
+                    <h2 className="text-sm font-semibold text-foreground">Edit Block</h2>
+                    <p className="text-xs text-muted-foreground mt-0.5">Auto-saves changes</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setEditingBlock(null);
+                      setSelectedBlockId(null);
+                    }}
+                    className="h-8 text-xs"
+                  >
+                    Done
+                  </Button>
+                </>
+              ) : (
+                <div>
+                  <h2 className="text-sm font-semibold text-foreground">Properties</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">Click block to edit</p>
+                </div>
               )}
             </div>
-            {editingBlock && (
-              <p className="text-xs text-muted-foreground mt-1">
-                Changes save automatically
-              </p>
-            )}
           </div>
           {editingBlock ? (
             <div className="p-4">
@@ -503,12 +513,12 @@ export function PageBuilder({
           ) : (
             <div className="flex items-center justify-center h-full text-center p-8">
               <div className="max-w-sm">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-lg bg-muted flex items-center justify-center">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center">
                   <SettingsIcon className="w-8 h-8 text-muted-foreground" />
                 </div>
-                <p className="text-sm font-semibold text-foreground mb-2">No element selected</p>
+                <h3 className="text-sm font-semibold text-foreground mb-2">No Block Selected</h3>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Click on any element in the canvas to edit its properties and customize its appearance.
+                  Click any block on the canvas to customize its content, colors, and settings
                 </p>
               </div>
             </div>
@@ -562,6 +572,13 @@ export function PageBuilder({
           </div>
         </SheetContent>
       </Sheet>
+      
+      {/* Block Picker Modal */}
+      <BlockPickerModal
+        open={showBlockPicker}
+        onOpenChange={setShowBlockPicker}
+        onSelectBlock={handleAddBlock}
+      />
     </div>
   );
 }

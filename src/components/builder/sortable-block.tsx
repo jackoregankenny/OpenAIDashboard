@@ -41,53 +41,75 @@ export function SortableBlock({
     <div
       ref={setNodeRef}
       style={style}
-      className={`relative group ${isSelected ? 'ring-2 ring-primary' : ''}`}
+      className={`relative group rounded-lg overflow-hidden transition-all ${
+        isSelected 
+          ? 'ring-2 ring-primary shadow-lg' 
+          : 'hover:shadow-md'
+      } ${isDragging ? 'scale-105' : ''}`}
       onClick={() => {
         onSelect(block.id);
         onEdit(block);
       }}
     >
-      {/* Drag handle and controls overlay */}
-      <div className="absolute top-2 right-2 z-10 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+      {/* Control bar - always visible when selected, hover otherwise */}
+      <div className={`absolute top-3 right-3 z-20 flex gap-2 transition-all ${
+        isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+      }`}>
         <Button
           size="icon"
           variant="secondary"
-          className="h-8 w-8 shadow-lg cursor-grab active:cursor-grabbing"
+          className="h-9 w-9 shadow-xl cursor-grab active:cursor-grabbing backdrop-blur-sm bg-background/90 hover:bg-background"
           {...attributes}
           {...listeners}
           onClick={(e) => {
             e.stopPropagation();
           }}
+          title="Drag to reorder"
         >
           <GripVertical className="h-4 w-4" />
         </Button>
         <Button
           size="icon"
           variant="secondary"
-          className="h-8 w-8 shadow-lg"
+          className="h-9 w-9 shadow-xl backdrop-blur-sm bg-background/90 hover:bg-background"
           onClick={(e) => {
             e.stopPropagation();
             onEdit(block);
           }}
+          title="Edit block"
         >
           <Settings className="h-4 w-4" />
         </Button>
         <Button
           size="icon"
           variant="destructive"
-          className="h-8 w-8 shadow-lg"
+          className="h-9 w-9 shadow-xl"
           onClick={(e) => {
             e.stopPropagation();
-            onDelete(block.id);
+            if (confirm('Delete this block?')) {
+              onDelete(block.id);
+            }
           }}
+          title="Delete block"
         >
           <Trash2 className="h-4 w-4" />
         </Button>
       </div>
 
+      {/* Selected indicator */}
+      {isSelected && (
+        <div className="absolute top-0 left-0 right-0 h-1 bg-primary z-10" />
+      )}
+
       {/* Block content */}
-      <div className={`${isSelected ? 'ring-2 ring-primary ring-offset-2' : ''} cursor-pointer`}>
+      <div className="cursor-pointer relative">
         <BlockRenderer block={block} isPreview />
+        {/* Hover overlay */}
+        <div className={`absolute inset-0 pointer-events-none transition-all ${
+          isSelected 
+            ? 'bg-primary/5' 
+            : 'bg-transparent group-hover:bg-primary/5'
+        }`} />
       </div>
     </div>
   );

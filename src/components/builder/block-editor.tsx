@@ -370,15 +370,24 @@ export function BlockEditor({ block, onSave, onCancel, onLiveUpdate }: BlockEdit
   };
 
   return (
-    <div className="space-y-3">
-      <div className="space-y-1">
-        <h3 className="text-sm font-semibold">{definition.name}</h3>
-        <p className="text-xs text-muted-foreground">{definition.description}</p>
+    <div className="space-y-4">
+      {/* Block Info Header */}
+      <div className="p-4 rounded-lg bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+            <span className="text-xl">{definition.icon}</span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-sm font-semibold text-foreground mb-1">{definition.name}</h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">{definition.description}</p>
+          </div>
+        </div>
       </div>
 
       <Separator />
 
-      <div className="space-y-3">
+      {/* Properties */}
+      <div className="space-y-4">
         {Object.entries(definition.defaultProps).map(([key, value]) => {
           const field = renderField(key, value);
           return field ? <div key={key}>{field}</div> : null;
