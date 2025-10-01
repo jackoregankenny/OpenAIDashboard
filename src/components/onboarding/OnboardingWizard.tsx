@@ -13,6 +13,7 @@ import {
   injectFontFaceStyles,
   type FontFormat,
 } from '@/lib/theme-engine/font-face';
+import { injectThemeStyles } from '@/lib/theme-engine/theme-to-css';
 import {
   THEME_STORAGE_KEY,
   type StoredFontFace,
@@ -544,7 +545,10 @@ export function OnboardingWizard() {
 
   useEffect(() => {
     refreshFontFaces();
-  }, [customFonts, refreshFontFaces]);
+    if (theme) {
+      injectThemeStyles(theme);
+    }
+  }, [customFonts, refreshFontFaces, theme]);
 
   useEffect(() => {
     if (!theme) return;
